@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Le Jeu d'Halloween</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top, #292929 0%, #111 45%, #050505 100%);
+      color: white;
+      font-family: Arial, Helvetica, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .game {
+      width: 100%;
+      max-width: 1100px;
+      padding: 40px 20px;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(35px, 6vw, 70px);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      font-weight: 900;
+    }
+
+    .subtitle {
+      margin-bottom: 45px;
+      color: #bbb;
+      font-size: 18px;
+    }
+
+    .objects {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 20px;
+      align-items: center;
+    }
+
+    .object {
+      position: relative;
+      height: 220px;
+      border: 2px solid #444;
+      border-radius: 20px;
+      background:
+        linear-gradient(145deg, #242424, #0d0d0d);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition:
+        transform 0.25s ease,
+        border-color 0.25s ease,
+        box-shadow 0.25s ease;
+      user-select: none;
+      overflow: hidden;
+    }
+
+    .object:hover {
+      transform: translateY(-10px) scale(1.03);
+      border-color: #ff7518;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7);
+    }
+
+    .object.disabled {
+      cursor: default;
+    }
+
+    .object.disabled:hover {
+      transform: none;
+      border-color: #444;
+      box-shadow: none;
+    }
+
+    .emoji {
+      font-size: 100px;
+      filter: drop-shadow(0 10px 8px rgba(0, 0, 0, 0.7));
+      transition: transform 0.3s ease;
+    }
+
+    .object:hover .emoji {
+      transform: scale(1.1) rotate(-3deg);
+    }
+
+    /* Résultat */
+
+    .result {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      opacity: 0;
+      transform: scale(0.7);
+      pointer-events: none;
+      transition: all 0.4s ease;
+      background: rgba(0, 0, 0, 0.92);
+    }
+
+    .object.revealed .result {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .object.revealed .emoji {
+      opacity: 0;
+      transform: scale(0);
+    }
+
+    .result-icon {
+      font-size: 65px;
+      margin-bottom: 10px;
+    }
+
+    .result-title {
+      font-size: 27px;
+      font-weight: 900;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .result-text {
+      font-size: 16px;
+      color: #ccc;
+      line-height: 1.4;
+    }
+
+    /* Gagné */
+
+    .win {
+      border-color: #f5b700 !important;
+      box-shadow: 0 0 40px rgba(245, 183, 0, 0.6) !important;
+      animation: winner 0.8s ease;
+    }
+
+    .win .result-title {
+      color: #f5b700;
+    }
+
+    /* Perdu */
+
+    .lose {
+      border-color: #b00020 !important;
+    }
+
+    .lose .result-title {
+      color: #ff334f;
+    }
+
+    /* Message final */
+
+    #finalMessage {
+      margin-top: 45px;
+      min-height: 80px;
+      display: none;
+      animation: appear 0.5s ease;
+    }
+
+    #finalMessage.show {
+      display: block;
+    }
+
+    #finalMessage h2 {
+      margin: 0 0 8px;
+      font-size: 35px;
+      text-transform: uppercase;
+    }
+
+    #finalMessage p {
+      margin: 0;
+      color: #bbb;
+      font-size: 18px;
+    }
+
+    .win-message h2 {
+      color: #f5b700;
+    }
+
+    .lose-message h2 {
+      color: #ff334f;
+    }
+
+    @keyframes winner {
+      0% {
+        transform: scale(1);
+      }
+
+      30% {
+        transform: scale(1.08);
+      }
+
+      60% {
+        transform: scale(0.96);
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    @keyframes appear {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Petites particules */
+
+    .particle {
+      position: fixed;
+      pointer-events: none;
+      font-size: 25px;
+      animation: fall 1.5s linear forwards;
+      z-index: 100;
+    }
+
+    @keyframes fall {
+      0% {
+        opacity: 1;
+        transform: translateY(0) rotate(0deg);
+      }
+
+      100% {
+        opacity: 0;
+        transform: translateY(300px) rotate(360deg);
+      }
+    }
+
+    @media (max-width: 800px) {
+      body {
+        overflow: auto;
+      }
+
+      .objects {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .object:last-child {
+        grid-column: span 2;
+      }
+
+      .object {
+        height: 190px;
+      }
+    }
+
+    @media (max-width: 450px) {
+      .objects {
+        grid-template-columns: 1fr;
+      }
+
+      .object:last-child {
+        grid-column: span 1;
+      }
+    }
+
+  </style>
+</head>
+
+<body>
+
+  <div class="game">
+
+    <h1>🎃 Jeu d'Halloween</h1>
+
+    <div class="subtitle">
+      Un seul élément cache les bonbons... À toi de le trouver !
+    </div>
+
+    <div class="objects">
+
+      <!-- CHAUDRON -->
+      <div class="object" data-name="Chaudron" onclick="play(this)">
+        <div class="emoji">🫕</div>
+
+        <div class="result">
+          <div class="result-icon"></div>
+          <div class="result-title"></div>
+          <div class="result-text"></div>
+        </div>
+      </div>
+
+      <!-- CITROUILLE -->
+      <div class="object" data-name="Citrouille" onclick="play(this)">
+        <div class="emoji">🎃</div>
+
+        <div class="result">
+          <div class="result-icon"></div>
+          <div class="result-title"></div>
+          <div class="result-text"></div>
+        </div>
+      </div>
+
+      <!-- CHAPEAU -->
+      <div class="object" data-name="Chapeau" onclick="play(this)">
+        <div class="emoji">🧙‍♀️</div>
+
+        <div class="result">
+          <div class="result-icon"></div>
+          <div class="result-title"></div>
+          <div class="result-text"></div>
+        </div>
+      </div>
+
+      <!-- CRANE -->
+      <div class="object" data-name="Crâne" onclick="play(this)">
+        <div class="emoji">💀</div>
+
+        <div class="result">
+          <div class="result-icon"></div>
+          <div class="result-title"></div>
+          <div class="result-text"></div>
+        </div>
+      </div>
+
+      <!-- FANTOME -->
+      <div class="object" data-name="Fantôme" onclick="play(this)">
+        <div class="emoji">👻</div>
+
+        <div class="result">
+          <div class="result-icon"></div>
+          <div class="result-title"></div>
+          <div class="result-text"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div id="finalMessage">
+      <h2></h2>
+      <p></p>
+    </div>
+
+  </div>
+
+
+  <script>
+    /* ============================================================
+   CONFIGURATION DU JEU
+   ============================================================ */
+
+    let gameOver = false;
+
+
+    /* ============================================================
+       LISTE DES SORTS
+       Ils seront mélangés à chaque nouvelle partie.
+       ============================================================ */
+
+    const spells = [
+
+      {
+        icon: "🕷️",
+        title: "SORT !",
+        text: "Une araignée t'a jeté un mauvais sort..."
+      },
+
+      {
+        icon: "👻",
+        title: "SORT !",
+        text: "Un fantôme vient de voler tes bonbons !"
+      },
+
+      {
+        icon: "🧙‍♀️",
+        title: "SORT !",
+        text: "La sorcière avait préparé une mauvaise surprise..."
+      },
+
+      {
+        icon: "☠️",
+        title: "SORT !",
+        text: "Le sortilège du crâne vient de frapper !"
+      }
+
+    ];
+
+
+    /* ============================================================
+       MÉLANGE ALÉATOIRE
+       ============================================================ */
+
+    function shuffle(array) {
+
+      for (let i = array.length - 1; i > 0; i--) {
+
+        const j = Math.floor(Math.random() * (i + 1));
+
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+
+      return array;
+    }
+
+
+    /* ============================================================
+       PRÉPARATION DE LA PARTIE
+       ============================================================ */
+
+    function prepareGame() {
+
+      const objects = document.querySelectorAll(".object");
+
+      /*
+       * Choisit au hasard l'emplacement des bonbons.
+       * Exemple :
+       * 0 = chaudron
+       * 1 = citrouille
+       * 2 = chapeau
+       * 3 = crâne
+       * 4 = fantôme
+       */
+
+      const winningIndex = Math.floor(Math.random() * objects.length);
+
+      /*
+       * Mélange les sorts afin que chaque élément
+       * possède un sort différent.
+       */
+
+      const shuffledSpells = shuffle([...spells]);
+
+      objects.forEach((object, index) => {
+
+        if (index === winningIndex) {
+
+          object.dataset.result = "win";
+
+        } else {
+
+          object.dataset.result = "lose";
+
+          /*
+           * Stocke le sort correspondant à cet élément.
+           */
+
+          const spell = shuffledSpells.shift();
+
+          object.dataset.icon = spell.icon;
+          object.dataset.title = spell.title;
+          object.dataset.text = spell.text;
+        }
+
+      });
+
+    }
+
+
+    /* ============================================================
+       CLIC SUR UN OBJET
+       ============================================================ */
+
+    function play(element) {
+
+      /*
+       * Si la partie est déjà terminée :
+       * aucune action possible.
+       */
+
+      if (gameOver) {
+        return;
+      }
+
+      /*
+       * La partie est immédiatement verrouillée.
+       */
+
+      gameOver = true;
+
+      const objects = document.querySelectorAll(".object");
+
+      objects.forEach(object => {
+
+        object.classList.add("disabled");
+
+        /*
+         * Désactive réellement le clic.
+         */
+
+        object.onclick = null;
+
+      });
+
+
+      const result = element.querySelector(".result");
+
+      const icon = result.querySelector(".result-icon");
+      const title = result.querySelector(".result-title");
+      const text = result.querySelector(".result-text");
+
+
+      /* ========================================================
+         BONBONS
+         ======================================================== */
+
+      if (element.dataset.result === "win") {
+
+        element.classList.add("revealed", "win");
+
+        icon.textContent = "🍬";
+        title.textContent = "GAGNÉ !";
+        text.textContent = "Bravo ! Tu as trouvé les bonbons !";
+
+        showFinalMessage(
+          true,
+          "🎉 BRAVO !",
+          "Tu as trouvé les bonbons !"
+        );
+
+        createParticles();
+
+      }
+
+
+      /* ========================================================
+         SORT
+         ======================================================== */
+      else {
+
+        element.classList.add("revealed", "lose");
+
+        icon.textContent = element.dataset.icon;
+        title.textContent = element.dataset.title;
+        text.textContent = element.dataset.text;
+
+        showFinalMessage(
+          false,
+          "☠️ PERDU !",
+          "Malheureusement, tu es tombé sur un sort..."
+        );
+
+      }
+
+    }
+
+
+    /* ============================================================
+       MESSAGE FINAL
+       ============================================================ */
+
+    function showFinalMessage(win, title, text) {
+
+      const finalMessage = document.getElementById("finalMessage");
+
+      finalMessage.classList.add("show");
+
+      finalMessage.classList.add(
+        win ? "win-message" : "lose-message"
+      );
+
+      finalMessage.querySelector("h2").textContent = title;
+      finalMessage.querySelector("p").textContent = text;
+
+    }
+
+
+    /* ============================================================
+       PARTICULES DE BONBONS EN CAS DE VICTOIRE
+       ============================================================ */
+
+    function createParticles() {
+
+      const candies = [
+        "🍬",
+        "🍭",
+        "🍫",
+        "🍬",
+        "🍭",
+        "🍫"
+      ];
+
+      for (let i = 0; i < 30; i++) {
+
+        const particle = document.createElement("div");
+
+        particle.classList.add("particle");
+
+        particle.textContent =
+          candies[Math.floor(Math.random() * candies.length)];
+
+        particle.style.left =
+          Math.random() * 100 + "vw";
+
+        particle.style.top =
+          Math.random() * 20 + "vh";
+
+        particle.style.animationDelay =
+          Math.random() * 0.5 + "s";
+
+        document.body.appendChild(particle);
+
+
+        setTimeout(() => {
+
+          particle.remove();
+
+        }, 2000);
+
+      }
+
+    }
+
+
+    /* ============================================================
+       LANCEMENT D'UNE NOUVELLE PARTIE
+       ============================================================ */
+
+    prepareGame();
+
+  </script>
+
+</body>
+
+</html>
